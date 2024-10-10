@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import boto3
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -31,10 +32,6 @@ def upload_file_to_r2(file, filename):
     # Sube el archivo a R2
     s3_client.upload_fileobj(file, CLOUDFLARE_R2_BUCKET_NAME, filename)
 
-    # Retorna la URL del archivo
-    file_url = f"{CLOUDFLARE_R2_ENDPOINT_URL}/{CLOUDFLARE_R2_BUCKET_NAME}/{filename}"
-    return file_url
-
 
 # Ruta para manejar la subida de archivos
 @app.route('/upload', methods=['POST'])
@@ -48,9 +45,13 @@ def upload_file():
         return jsonify({'success': False, 'error': 'No selected file.'}), 400
 
     try:
-        # Sube el archivo a Cloudflare R2
-        file_url = upload_file_to_r2(file, file.filename)
-        return jsonify({'success': True, 'file_url': file_url}), 200
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        original_filename = file.filename
+        unique_filename = f"{timestamp}_{original_filename}"
+
+        upload_file_to_r2(file, unique_filename)
+
+        return jsonify({'success': True, 'filename': unique_filename}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
